@@ -408,50 +408,50 @@ int main(int argc, char **argv)
     // 声明和获取参数
     node->declare_parameter("init_state_x", 0.0);
     node->declare_parameter("init_state_y", 0.0);
-    node->declare_parameter("map.x_size", 50.0);
-    node->declare_parameter("map.y_size", 50.0);
-    node->declare_parameter("map.z_size", 5.0);
-    node->declare_parameter("map.obs_num", 30);
-    node->declare_parameter("map.resolution", 0.1);
-    node->declare_parameter("map.circle_num", 30);
+    node->declare_parameter("map/x_size", 50.0);
+    node->declare_parameter("map/y_size", 50.0);
+    node->declare_parameter("map/z_size", 5.0);
+    node->declare_parameter("map/obs_num", 30);
+    node->declare_parameter("map/resolution", 0.1);
+    node->declare_parameter("map/circle_num", 30);
 
-    node->declare_parameter("ObstacleShape.lower_rad", 0.3);
-    node->declare_parameter("ObstacleShape.upper_rad", 0.8);
-    node->declare_parameter("ObstacleShape.lower_hei", 3.0);
-    node->declare_parameter("ObstacleShape.upper_hei", 7.0);
+    node->declare_parameter("ObstacleShape/lower_rad", 0.3);
+    node->declare_parameter("ObstacleShape/upper_rad", 0.8);
+    node->declare_parameter("ObstacleShape/lower_hei", 3.0);
+    node->declare_parameter("ObstacleShape/upper_hei", 7.0);
 
-    node->declare_parameter("ObstacleShape.radius_l", 7.0);
-    node->declare_parameter("ObstacleShape.radius_h", 7.0);
-    node->declare_parameter("ObstacleShape.z_l", 7.0);
-    node->declare_parameter("ObstacleShape.z_h", 7.0);
-    node->declare_parameter("ObstacleShape.theta", 7.0);
+    node->declare_parameter("ObstacleShape/radius_l", 7.0);
+    node->declare_parameter("ObstacleShape/radius_h", 7.0);
+    node->declare_parameter("ObstacleShape/z_l", 7.0);
+    node->declare_parameter("ObstacleShape/z_h", 7.0);
+    node->declare_parameter("ObstacleShape/theta", 7.0);
 
-    node->declare_parameter("sensing.radius", 10.0);
-    node->declare_parameter("sensing.rate", 10.0);
+    node->declare_parameter("sensing/radius", 10.0);
+    node->declare_parameter("sensing/rate", 10.0);
     node->declare_parameter("min_distance", 1.0);
 
     node->get_parameter("init_state_x", _init_x);
     node->get_parameter("init_state_y", _init_y);
-    node->get_parameter("map.x_size", _x_size);
-    node->get_parameter("map.y_size", _y_size);
-    node->get_parameter("map.z_size", _z_size);
-    node->get_parameter("map.obs_num", _obs_num);
-    node->get_parameter("map.resolution", _resolution);
-    node->get_parameter("map.circle_num", circle_num_);
+    node->get_parameter("map/x_size", _x_size);
+    node->get_parameter("map/y_size", _y_size);
+    node->get_parameter("map/z_size", _z_size);
+    node->get_parameter("map/obs_num", _obs_num);
+    node->get_parameter("map/resolution", _resolution);
+    node->get_parameter("map/circle_num", circle_num_);
 
-    node->get_parameter("ObstacleShape.lower_rad", _w_l);
-    node->get_parameter("ObstacleShape.upper_rad", _w_h);
-    node->get_parameter("ObstacleShape.lower_hei", _h_l);
-    node->get_parameter("ObstacleShape.upper_hei", _h_h);
+    node->get_parameter("ObstacleShape/lower_rad", _w_l);
+    node->get_parameter("ObstacleShape/upper_rad", _w_h);
+    node->get_parameter("ObstacleShape/lower_hei", _h_l);
+    node->get_parameter("ObstacleShape/upper_hei", _h_h);
 
-    node->get_parameter("ObstacleShape.radius_l", radius_l_);
-    node->get_parameter("ObstacleShape.radius_h", radius_h_);
-    node->get_parameter("ObstacleShape.z_l", z_l_);
-    node->get_parameter("ObstacleShape.z_h", z_h_);
-    node->get_parameter("ObstacleShape.theta", theta_);
+    node->get_parameter("ObstacleShape/radius_l", radius_l_);
+    node->get_parameter("ObstacleShape/radius_h", radius_h_);
+    node->get_parameter("ObstacleShape/z_l", z_l_);
+    node->get_parameter("ObstacleShape/z_h", z_h_);
+    node->get_parameter("ObstacleShape/theta", theta_);
 
-    node->get_parameter("sensing.radius", _sensing_range);
-    node->get_parameter("sensing.rate", _sense_rate);
+    node->get_parameter("sensing/radius", _sensing_range);
+    node->get_parameter("sensing/rate", _sense_rate);
     node->get_parameter("min_distance", _min_dist);
 
     // 地图边界和障碍物的设置

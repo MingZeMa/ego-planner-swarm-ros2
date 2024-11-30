@@ -481,6 +481,7 @@ void cmd_callback(const quadrotor_msgs::msg::PositionCommand cmd)
     meshROS.color.g = color_g;
     meshROS.color.b = color_b;
     meshROS.mesh_resource = mesh_resource;
+    std::cout<< "pub mesh !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1" << std::endl;
     meshPub->publish(meshROS);
 }
 

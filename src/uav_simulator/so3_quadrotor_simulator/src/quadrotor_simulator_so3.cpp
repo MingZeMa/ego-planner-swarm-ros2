@@ -9,9 +9,6 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <uav_utils/geometry_utils.h>
 
-
-
-
 typedef struct _Control
 {
     double rpm[4];
@@ -43,13 +40,15 @@ void quadToImuMsg(const QuadrotorSimulator::Quadrotor &quad,
                   sensor_msgs::msg::Imu &imu);
 
 static Control
+// 根据无人机的当前状态和目标控制指令计算四个电机所需的转速（RPM）
 getControl(const QuadrotorSimulator::Quadrotor &quad, const Command &cmd)
 {
-    const double _kf = quad.getPropellerThrustCoefficient();
-    const double _km = quad.getPropellerMomentCoefficient();
-    const double kf = _kf - cmd.corrections[0];
-    const double km = _km / _kf * kf;
+    const double _kf = quad.getPropellerThrustCoefficient(); // 推力系数
+    const double _km = quad.getPropellerMomentCoefficient(); // 力矩系数
+    const double kf = _kf - cmd.corrections[0];              // 补偿无人机推力偏差
+    const double km = _km / _kf * kf;                        // 更新推力和力矩的比例
 
+    // 获取无人机的臂长 d 和惯性矩阵 J
     const double d = quad.getArmLength();
     const Eigen::Matrix3f J = quad.getInertia().cast<float>();
     const float I[3][3] = {{J(0, 0), J(0, 1), J(0, 2)},
@@ -58,6 +57,7 @@ getControl(const QuadrotorSimulator::Quadrotor &quad, const Command &cmd)
     const QuadrotorSimulator::Quadrotor::State state = quad.getState();
 
     // Rotation, may use external yaw
+    // 当前姿态的旋转矩阵转换为欧拉角
     Eigen::Vector3d _ypr = uav_utils::R_to_ypr(state.R);
     Eigen::Vector3d ypr = _ypr;
     if (cmd.use_external_yaw)
@@ -90,6 +90,7 @@ getControl(const QuadrotorSimulator::Quadrotor &quad, const Command &cmd)
     float Om2 = state.omega(1);
     float Om3 = state.omega(2);
 
+    // 通过指令的数据生成目标姿态的旋转矩阵
     float Rd11 =
         cmd.qw * cmd.qw + cmd.qx * cmd.qx - cmd.qy * cmd.qy - cmd.qz * cmd.qz;
     float Rd12 = 2 * (cmd.qx * cmd.qy - cmd.qw * cmd.qz);
@@ -103,14 +104,17 @@ getControl(const QuadrotorSimulator::Quadrotor &quad, const Command &cmd)
     float Rd33 =
         cmd.qw * cmd.qw - cmd.qx * cmd.qx - cmd.qy * cmd.qy + cmd.qz * cmd.qz;
 
+    // 通过当前旋转矩阵和目标旋转矩阵计算稳定性指标
     float Psi = 0.5f * (3.0f - (Rd11 * R11 + Rd21 * R21 + Rd31 * R31 +
                                 Rd12 * R12 + Rd22 * R22 + Rd32 * R32 +
                                 Rd13 * R13 + Rd23 * R23 + Rd33 * R33));
 
     float force = 0;
+    // 如果稳定性条件满足，根据期望的力方向和当前旋转矩阵计算推力
     if (Psi < 1.0f) // Position control stability guaranteed only when Psi < 1
         force = cmd.force[0] * R13 + cmd.force[1] * R23 + cmd.force[2] * R33;
 
+    // 计算旋转误差和角速度误差
     float eR1 = 0.5f * (R12 * Rd13 - R13 * Rd12 + R22 * Rd23 - R23 * Rd22 +
                         R32 * Rd33 - R33 * Rd32);
     float eR2 = 0.5f * (R13 * Rd11 - R11 * Rd13 - R21 * Rd23 + R23 * Rd21 -
@@ -122,6 +126,7 @@ getControl(const QuadrotorSimulator::Quadrotor &quad, const Command &cmd)
     float eOm2 = Om2;
     float eOm3 = Om3;
 
+    // 计算角速度引起的非线性耦合补偿项
     float in1 = Om2 * (I[2][0] * Om1 + I[2][1] * Om2 + I[2][2] * Om3) -
                 Om3 * (I[1][0] * Om1 + I[1][1] * Om2 + I[1][2] * Om3);
     float in2 = Om3 * (I[0][0] * Om1 + I[0][1] * Om2 + I[0][2] * Om3) -
@@ -142,10 +147,12 @@ getControl(const QuadrotorSimulator::Quadrotor &quad, const Command &cmd)
       float muR3 = -deltaR*deltaR * eA3 / (deltaR * neA + epsilonR);
       // Robust Control --------------------------------------------
     */
+    // 根据旋转误差、角速度误差和耦合补偿计算力矩
     float M1 = -cmd.kR[0] * eR1 - cmd.kOm[0] * eOm1 + in1; // - I[0][0]*muR1;
     float M2 = -cmd.kR[1] * eR2 - cmd.kOm[1] * eOm2 + in2; // - I[1][1]*muR2;
     float M3 = -cmd.kR[2] * eR3 - cmd.kOm[2] * eOm3 + in3; // - I[2][2]*muR3;
 
+    // 通过线性分配公式，将总推力和力矩分配到四个电机
     float w_sq[4];
     w_sq[0] = force / (4 * kf) - M2 / (2 * d * kf) + M3 / (4 * km);
     w_sq[1] = force / (4 * kf) + M2 / (2 * d * kf) + M3 / (4 * km);
@@ -155,6 +162,7 @@ getControl(const QuadrotorSimulator::Quadrotor &quad, const Command &cmd)
     Control control;
     for (int i = 0; i < 4; i++)
     {
+        // 将负的推力值截断为零，并通过平方根计算每个电机的转速
         if (w_sq[i] < 0)
             w_sq[i] = 0;
 
@@ -202,47 +210,45 @@ moment_disturbance_callback(const geometry_msgs::msg::Vector3::ConstPtr &m)
     disturbance.m(2) = m->z;
 }
 
-void
-stateToOdomMsg(const QuadrotorSimulator::Quadrotor::State& state,
-               nav_msgs::msg::Odometry&                         odom)
+void stateToOdomMsg(const QuadrotorSimulator::Quadrotor::State &state,
+                    nav_msgs::msg::Odometry &odom)
 {
-  odom.pose.pose.position.x = state.x(0);
-  odom.pose.pose.position.y = state.x(1);
-  odom.pose.pose.position.z = state.x(2);
+    odom.pose.pose.position.x = state.x(0);
+    odom.pose.pose.position.y = state.x(1);
+    odom.pose.pose.position.z = state.x(2);
 
-  Eigen::Quaterniond q(state.R);
-  odom.pose.pose.orientation.x = q.x();
-  odom.pose.pose.orientation.y = q.y();
-  odom.pose.pose.orientation.z = q.z();
-  odom.pose.pose.orientation.w = q.w();
+    Eigen::Quaterniond q(state.R);
+    odom.pose.pose.orientation.x = q.x();
+    odom.pose.pose.orientation.y = q.y();
+    odom.pose.pose.orientation.z = q.z();
+    odom.pose.pose.orientation.w = q.w();
 
-  odom.twist.twist.linear.x = state.v(0);
-  odom.twist.twist.linear.y = state.v(1);
-  odom.twist.twist.linear.z = state.v(2);
+    odom.twist.twist.linear.x = state.v(0);
+    odom.twist.twist.linear.y = state.v(1);
+    odom.twist.twist.linear.z = state.v(2);
 
-  odom.twist.twist.angular.x = state.omega(0);
-  odom.twist.twist.angular.y = state.omega(1);
-  odom.twist.twist.angular.z = state.omega(2);
+    odom.twist.twist.angular.x = state.omega(0);
+    odom.twist.twist.angular.y = state.omega(1);
+    odom.twist.twist.angular.z = state.omega(2);
 }
 
-void
-quadToImuMsg(const QuadrotorSimulator::Quadrotor& quad, sensor_msgs::msg::Imu& imu)
+void quadToImuMsg(const QuadrotorSimulator::Quadrotor &quad, sensor_msgs::msg::Imu &imu)
 
 {
-  QuadrotorSimulator::Quadrotor::State state = quad.getState();
-  Eigen::Quaterniond                   q(state.R);
-  imu.orientation.x = q.x();
-  imu.orientation.y = q.y();
-  imu.orientation.z = q.z();
-  imu.orientation.w = q.w();
+    QuadrotorSimulator::Quadrotor::State state = quad.getState();
+    Eigen::Quaterniond q(state.R);
+    imu.orientation.x = q.x();
+    imu.orientation.y = q.y();
+    imu.orientation.z = q.z();
+    imu.orientation.w = q.w();
 
-  imu.angular_velocity.x = state.omega(0);
-  imu.angular_velocity.y = state.omega(1);
-  imu.angular_velocity.z = state.omega(2);
+    imu.angular_velocity.x = state.omega(0);
+    imu.angular_velocity.y = state.omega(1);
+    imu.angular_velocity.z = state.omega(2);
 
-  imu.linear_acceleration.x = quad.getAcc()[0];
-  imu.linear_acceleration.y = quad.getAcc()[1];
-  imu.linear_acceleration.z = quad.getAcc()[2];
+    imu.linear_acceleration.x = quad.getAcc()[0];
+    imu.linear_acceleration.y = quad.getAcc()[1];
+    imu.linear_acceleration.z = quad.getAcc()[2];
 }
 
 int main(int argc, char **argv)
@@ -297,6 +303,9 @@ int main(int argc, char **argv)
     quad_name = node->get_parameter("quadrotor_name").as_string();
 
     QuadrotorSimulator::Quadrotor::State state = quad.getState();
+    // std::cout << "state1 x!!!!!!!!!!!!!!!!!!!!" << state.x(0) << std::endl;
+    // std::cout << "state1 y!!!!!!!!!!!!!!!!!!!!" << state.x(1) << std::endl;
+    // std::cout << "state1 z!!!!!!!!!!!!!!!!!!!!" << state.x(2) << std::endl;
 
     rclcpp::Rate r(simulation_rate);
     const double dt = 1.0 / simulation_rate;
@@ -338,9 +347,16 @@ int main(int argc, char **argv)
             next_odom_pub_time += odom_pub_duration;
             odom_msg.header.stamp = tnow;
             auto state = quad.getState();
+            // std::cout << "state2 x!!!!!!!!!!!!!!!!!!!!" << state.x(0) << std::endl;
+            // std::cout << "state2 y!!!!!!!!!!!!!!!!!!!!" << state.x(1) << std::endl;
+            // std::cout << "state2 z!!!!!!!!!!!!!!!!!!!!" << state.x(2) << std::endl;
             stateToOdomMsg(state, odom_msg);
             quadToImuMsg(quad, imu);
             odom_pub_->publish(odom_msg);
+            // std::cout << "pub odom!!!!!!!!!!!!!!!!!!!!" << std::endl;
+            // std::cout << "pub odom x!!!!!!!!!!!!!!!!!!!!" << odom_msg.pose.pose.position.x << std::endl;
+            // std::cout << "pub odom y!!!!!!!!!!!!!!!!!!!!" << odom_msg.pose.pose.position.y << std::endl;
+            // std::cout << "pub odom z!!!!!!!!!!!!!!!!!!!!" << odom_msg.pose.pose.position.z << std::endl;
             imu_pub_->publish(imu);
         }
 

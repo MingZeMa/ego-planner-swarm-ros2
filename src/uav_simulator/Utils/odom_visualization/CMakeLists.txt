@@ -62,7 +62,8 @@ target_link_libraries(odom_visualization
   ${ARMADILLO_LIBRARIES}
 )
 
-
+# 安装mesh
+install(DIRECTORY meshes DESTINATION share/${PROJECT_NAME})
 
 install(TARGETS odom_visualization
   DESTINATION lib/${PROJECT_NAME}

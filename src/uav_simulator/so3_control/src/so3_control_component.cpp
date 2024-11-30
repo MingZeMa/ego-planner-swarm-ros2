@@ -18,6 +18,7 @@ public:
         : Node("SO3ControlComponent", options), position_cmd_updated_(false), position_cmd_init_(false), des_yaw_(0), des_yaw_dot_(0), current_yaw_(0), enable_motors_(true), // FIXME
           use_external_yaw_(false)
     {
+        onInit();
     }
 
     void onInit(void);
@@ -53,7 +54,8 @@ private:
 };
 
 void SO3ControlComponent::publishSO3Command(void)
-{
+{   
+    // std::cout<< "pub so3 cmd!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     controller_.calculateControl(des_pos_, des_vel_, des_acc_, des_yaw_,
                                  des_yaw_dot_, kx_, kv_);
 
@@ -94,6 +96,7 @@ void SO3ControlComponent::publishSO3Command(void)
 
 void SO3ControlComponent::position_cmd_callback(const quadrotor_msgs::msg::PositionCommand::ConstPtr &cmd)
 {
+    // std::cout<< "SO3ControlComponent::cmd callback!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
     des_pos_ = Eigen::Vector3d(cmd->position.x, cmd->position.y, cmd->position.z);
     des_vel_ = Eigen::Vector3d(cmd->velocity.x, cmd->velocity.y, cmd->velocity.z);
     des_acc_ = Eigen::Vector3d(cmd->acceleration.x, cmd->acceleration.y, cmd->acceleration.z);
@@ -116,7 +119,10 @@ void SO3ControlComponent::position_cmd_callback(const quadrotor_msgs::msg::Posit
 }
 
 void SO3ControlComponent::odom_callback(const nav_msgs::msg::Odometry::ConstPtr &odom)
-{
+{   
+    // std::cout<< "SO3ControlComponent::odom_callback!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+    // std::cout<< "position_cmd_init_!!!!!!!!!!!!!!!!!!!!!!!" << position_cmd_init_ << std::endl;
+    // std::cout<< "position_cmd_updated_!!!!!!!!!!!!!!!!!!!!!!!" << position_cmd_updated_ << std::endl;
     const Eigen::Vector3d position(odom->pose.pose.position.x,
                                    odom->pose.pose.position.y,
                                    odom->pose.pose.position.z);
@@ -191,80 +197,81 @@ void SO3ControlComponent::imu_callback(const sensor_msgs::msg::Imu &imu)
 
 void SO3ControlComponent::onInit(void)
 {
-    rclcpp::Node::SharedPtr node = this->shared_from_this();
+    // rclcpp::Node::SharedPtr node = this->shared_from_this();
+    RCLCPP_INFO(get_logger(), "start SO3ControlComponent");
 
-    node->declare_parameter("quadrotor_name", "quadrotor");
-    node->declare_parameter("mass", 0.5);
+    declare_parameter("quadrotor_name", "quadrotor");
+    declare_parameter("mass", 0.5);
 
-    node->declare_parameter("use_external_yaw", true);
+    declare_parameter("use_external_yaw", true);
 
-    node->declare_parameter("gains/rot/x", 1.5);
-    node->declare_parameter("gains/rot/y", 1.5);
-    node->declare_parameter("gains/rot/z", 1.0);
-    node->declare_parameter("gains/ang/x", 0.13);
-    node->declare_parameter("gains/ang/y", 0.13);
-    node->declare_parameter("gains/ang/z", 0.1);
+    declare_parameter("gains/rot/x", 1.5);
+    declare_parameter("gains/rot/y", 1.5);
+    declare_parameter("gains/rot/z", 1.0);
+    declare_parameter("gains/ang/x", 0.13);
+    declare_parameter("gains/ang/y", 0.13);
+    declare_parameter("gains/ang/z", 0.1);
 
-    node->declare_parameter("gains/kx/x", 5.7);
-    node->declare_parameter("gains/kx/y", 5.7);
-    node->declare_parameter("gains/kx/z", 6.2);
-    node->declare_parameter("gains/kv/x", 3.4);
-    node->declare_parameter("gains/kv/y", 3.4);
-    node->declare_parameter("gains/kv/z", 4.0);
+    declare_parameter("gains/kx/x", 5.7);
+    declare_parameter("gains/kx/y", 5.7);
+    declare_parameter("gains/kx/z", 6.2);
+    declare_parameter("gains/kv/x", 3.4);
+    declare_parameter("gains/kv/y", 3.4);
+    declare_parameter("gains/kv/z", 4.0);
 
-    node->declare_parameter("corrections/z", 0.0);
-    node->declare_parameter("corrections/r", 0.0);
-    node->declare_parameter("corrections/p", 0.0);
-    node->declare_parameter("so3_control/init_state_x", 0.0);
-    node->declare_parameter("so3_control/init_state_y", 0.0);
-    node->declare_parameter("so3_control/init_state_z", -10000.0);
+    declare_parameter("corrections/z", 0.0);
+    declare_parameter("corrections/r", 0.0);
+    declare_parameter("corrections/p", 0.0);
+    declare_parameter("so3_control/init_state_x", 0.0);
+    declare_parameter("so3_control/init_state_y", 0.0);
+    declare_parameter("so3_control/init_state_z", -10000.0);
 
     std::string quadrotor_name;
-    node->get_parameter("quadrotor_name", quadrotor_name);
+    get_parameter("quadrotor_name", quadrotor_name);
     frame_id_ = "/" + quadrotor_name;
 
     double mass;
-    node->get_parameter("mass", mass);
+    get_parameter("mass", mass);
     controller_.setMass(mass);
 
-    node->get_parameter("use_external_yaw", use_external_yaw_);
+    get_parameter("use_external_yaw", use_external_yaw_);
 
-    node->get_parameter("gains/rot/x", kR_[0]);
-    node->get_parameter("gains/rot/y", kR_[1]);
-    node->get_parameter("gains/rot/z", kR_[2]);
-    node->get_parameter("gains/ang/x", kOm_[0]);
-    node->get_parameter("gains/ang/y", kOm_[1]);
-    node->get_parameter("gains/ang/z", kOm_[2]);
-    node->get_parameter("gains/kx/x", kx_[0]);
-    node->get_parameter("gains/kx/y", kx_[1]);
-    node->get_parameter("gains/kx/z", kx_[2]);
-    node->get_parameter("gains/kv/x", kv_[0]);
-    node->get_parameter("gains/kv/y", kv_[1]);
-    node->get_parameter("gains/kv/z", kv_[2]);
+    get_parameter("gains/rot/x", kR_[0]);
+    get_parameter("gains/rot/y", kR_[1]);
+    get_parameter("gains/rot/z", kR_[2]);
+    get_parameter("gains/ang/x", kOm_[0]);
+    get_parameter("gains/ang/y", kOm_[1]);
+    get_parameter("gains/ang/z", kOm_[2]);
+    get_parameter("gains/kx/x", kx_[0]);
+    get_parameter("gains/kx/y", kx_[1]);
+    get_parameter("gains/kx/z", kx_[2]);
+    get_parameter("gains/kv/x", kv_[0]);
+    get_parameter("gains/kv/y", kv_[1]);
+    get_parameter("gains/kv/z", kv_[2]);
 
-    node->get_parameter("corrections/z", corrections_[0]);
-    node->get_parameter("corrections/r", corrections_[1]);
-    node->get_parameter("corrections/p", corrections_[2]);
+    get_parameter("corrections/z", corrections_[0]);
+    get_parameter("corrections/r", corrections_[1]);
+    get_parameter("corrections/p", corrections_[2]);
 
-    node->get_parameter("so3_control/init_state_x", init_x_);
-    node->get_parameter("so3_control/init_state_y", init_y_);
-    node->get_parameter("so3_control/init_state_z", init_z_);
+    get_parameter("so3_control/init_state_x", init_x_);
+    get_parameter("so3_control/init_state_y", init_y_);
+    get_parameter("so3_control/init_state_z", init_z_);
 
-    so3_command_pub_ = node->create_publisher<quadrotor_msgs::msg::SO3Command>("so3_cmd", 10);
+    so3_command_pub_ = create_publisher<quadrotor_msgs::msg::SO3Command>("so3_cmd", 10);
 
-    odom_sub_ = node->create_subscription<nav_msgs::msg::Odometry>(
+    odom_sub_ = create_subscription<nav_msgs::msg::Odometry>(
         "odom", 10, std::bind(&SO3ControlComponent::odom_callback, this, std::placeholders::_1));
 
-    position_cmd_sub_ = node->create_subscription<quadrotor_msgs::msg::PositionCommand>(
+    position_cmd_sub_ = create_subscription<quadrotor_msgs::msg::PositionCommand>(
         "position_cmd", 10, std::bind(&SO3ControlComponent::position_cmd_callback, this, std::placeholders::_1));
 
-    enable_motors_sub_ = node->create_subscription<std_msgs::msg::Bool>(
+    enable_motors_sub_ = create_subscription<std_msgs::msg::Bool>(
         "motors", 2, std::bind(&SO3ControlComponent::enable_motors_callback, this, std::placeholders::_1));
 
-    corrections_sub_ = node->create_subscription<quadrotor_msgs::msg::Corrections>(
+    corrections_sub_ = create_subscription<quadrotor_msgs::msg::Corrections>(
         "corrections", 10, std::bind(&SO3ControlComponent::corrections_callback, this, std::placeholders::_1));
 
-    imu_sub_ = node->create_subscription<sensor_msgs::msg::Imu>(
+    imu_sub_ = create_subscription<sensor_msgs::msg::Imu>(
         "imu", 10, std::bind(&SO3ControlComponent::imu_callback, this, std::placeholders::_1));
 }
 

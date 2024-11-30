@@ -130,4 +130,10 @@ endif(ENABLE_CUDA)
 install(TARGETS pcl_render_node
   DESTINATION lib/${PROJECT_NAME})
 
+# 安装 params 文件
+install(
+  DIRECTORY params/
+  DESTINATION share/${PROJECT_NAME}/params
+)
+
 ament_package()
